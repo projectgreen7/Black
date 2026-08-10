@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sent</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #1C1C1E;
+            color: #FFFFFF;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 414px;
+            padding: 0 16px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            position: relative;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #FFFFFF;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .header-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.022em;
+        }
+
+        .amount-section {
+            text-align: center;
+            margin-top: 28px;
+            margin-bottom: 36px;
+        }
+
+        .amount-main {
+            font-size: 34px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .amount-sub {
+            font-size: 15px;
+            color: #8E8E93;
+            margin-top: 6px;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+        }
+
+        .card {
+            background-color: #2C2C2E;
+            border-radius: 12px;
+            padding: 4px 16px;
+            margin-bottom: 12px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+        }
+
+        .detail-row:not(:last-child) {
+            border-bottom: 1px solid #3A3A3C;
+        }
+
+        .detail-label {
+            color: #8E8E93;
+            font-size: 15px;
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            letter-spacing: -0.01em;
+        }
+
+        .detail-value {
+            font-size: 15px;
+            font-weight: 400;
+            text-align: right;
+            color: #FFFFFF;
+            letter-spacing: -0.01em;
+        }
+
+        .status-completed {
+            color: #03FC8F;
+            font-weight: 600;
+        }
+
+        .info-icon {
+            width: 15px;
+            height: 15px;
+            border: 1.2px solid #8E8E93;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            color: #8E8E93;
+            font-weight: 700;
+            font-family: serif;
+            line-height: 1;
+            padding-top: 1px;
+        }
+
+        .nonce-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+        }
+
+        .nonce-label {
+            color: #8E8E93;
+            font-size: 15px;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+        }
+
+        .nonce-value {
+            font-size: 15px;
+            font-weight: 400;
+            color: #FFFFFF;
+            letter-spacing: -0.01em;
+        }
+
+        .bottom-section {
+            margin-top: auto;
+            padding: 32px 0 48px;
+        }
+
+        .explorer-btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: transparent;
+            border: 1px solid rgba(3, 252, 143, 0.3);
+            border-radius: 12px;
+            color: #03FC8F;
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            text-decoration: none;
+            letter-spacing: -0.01em;
+            transition: background 0.2s;
+        }
+
+        .explorer-btn:active {
+            background: rgba(3, 252, 143, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <button class="icon-btn" aria-label="Back" onclick="history.back()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
+            </button>
+            <div class="header-title">Sent</div>
+            <button class="icon-btn" aria-label="Share">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                    <polyline points="16 6 12 2 8 6"/>
+                    <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="amount-section">
+            <div class="amount-main" id="amountMain">$0.00</div>
+            <div class="amount-sub" id="amountSub">0 USDT</div>
+        </div>
+
+        <div class="card">
+            <div class="detail-row">
+                <div class="detail-label">Date</div>
+                <div class="detail-value" id="detailDate">--</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">
+                    Status
+                    <span class="info-icon">i</span>
+                </div>
+                <div class="detail-value status-completed">Completed</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Recipient</div>
+                <div class="detail-value">0x32d3...77d1d</div>
+            </div>
+        </div>
+
+        <div class="card nonce-card">
+            <div class="nonce-label">Nonce</div>
+            <div class="nonce-value" id="nonceValue">--</div>
+        </div>
+
+        <div class="bottom-section">
+            <a href="#" class="explorer-btn">View on block explorer</a>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const amount = params.get('amount') || '0';
+            const time = params.get('time') || '';
+
+            const parsed = parseFloat(amount);
+            const usdValue = parsed.toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            const displayUsd = usdValue.replace('$', '≈ $');
+
+            document.getElementById('amountMain').textContent = displayUsd;
+            document.getElementById('amountSub').textContent = `-${parsed.toLocaleString('en-US', { maximumFractionDigits: 6 })} USDT`;
+
+            if (time) {
+                const date = new Date(parseInt(time));
+                const formatted = date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                }) + ' ' + date.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                document.getElementById('detailDate').textContent = formatted;
+
+                const nonce = date.getSeconds();
+                document.getElementById('nonceValue').textContent = nonce;
+            }
+        })();
+    </script>
+</body>
+</html>

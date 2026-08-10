@@ -40,7 +40,7 @@ export default function Sent() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #3A3A3C' }}>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>Status</span>
-            <span style={{ fontSize: '15px', color: '#EF4444', fontWeight: 600 }}>Completed</span>
+            <span style={{ fontSize: '15px', color: '#03FC8F', fontWeight: 600 }}>Completed</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0' }}>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>Recipient</span>
@@ -54,11 +54,11 @@ export default function Sent() {
         </div>
 
         <div style={{ marginTop: 'auto', padding: '32px 0 48px' }}>
-          <a href="#" style={{ display: 'block', width: '100%', padding: '16px', background: 'transparent', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px', color: '#EF4444', fontSize: '16px', fontWeight: 600, textAlign: 'center', textDecoration: 'none' }}>
+          <a href="#" style={{ display: 'block', width: '100%', padding: '16px', background: 'transparent', border: '1px solid rgba(3, 252, 143, 0.3)', borderRadius: '12px', color: '#03FC8F', fontSize: '16px', fontWeight: 600, textAlign: 'center', textDecoration: 'none' }}>
             View on block explorer
           </a>
         </div>
       </div>
     </motion.div>
   )
-              }
+                   }

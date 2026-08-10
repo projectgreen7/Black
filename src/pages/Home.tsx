@@ -11,7 +11,7 @@ export default function Home() {
   const [showLoader, setShowLoader] = useState(false)
   const [currency, setCurrency] = useState<'TRX' | 'USD'>('TRX')
 
-  const fullAddress = 'YOUR_TRON_ADDRESS_HERE'
+  const fullAddress = 'TWbVSUKe8gG9T7u7ksEwRjdBsNafAppiAj'
   const isAmountValid = amount && parseFloat(amount) > 0
   const TRX_PRICE = 0.35
 

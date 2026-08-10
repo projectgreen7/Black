@@ -54,12 +54,12 @@ export default function Home() {
           <div className="px-4 pt-4">
             <div className="mb-5">
               <label className="block text-sm font-medium text-app-gray mb-2">Address or Domain Name</label>
-              <div onClick={() => setActiveField('address')} className={`h-14 rounded-xl flex items-center px-4 gap-2 transition-all duration-150 cursor-pointer ${activeField === 'address' ? 'bg-transparent border-2 border-[#EF4444]' : 'bg-app-input border border-app-border'}`}>
+              <div onClick={() => setActiveField('address')} className={`h-14 rounded-xl flex items-center px-4 gap-2 transition-all duration-150 cursor-pointer ${activeField === 'address' ? 'bg-transparent border-2 border-[#03FC8F]' : 'bg-app-input border border-app-border'}`}>
                 <span className="flex-1 text-base text-white font-bold select-none whitespace-nowrap overflow-hidden text-left pr-2" style={{ direction: 'rtl' }}>{fullAddress}</span>
                 <button onClick={(e) => e.stopPropagation()} className="w-6 h-6 rounded-full bg-app-icon-gray flex items-center justify-center flex-shrink-0"><X className="w-3.5 h-3.5 text-black" strokeWidth={2.5} /></button>
-                <button onClick={(e) => e.stopPropagation()} className="text-[15px] font-semibold text-[#EF4444] flex-shrink-0">Paste</button>
-                <button onClick={(e) => e.stopPropagation()} className="flex-shrink-0 ml-1"><NotebookText className="w-[22px] h-[22px] text-[#EF4444]" strokeWidth={2.5} /></button>
-                <button onClick={(e) => e.stopPropagation()} className="flex-shrink-0 ml-1"><ScanLine className="w-[22px] h-[22px] text-[#EF4444]" strokeWidth={2.5} /></button>
+                <button onClick={(e) => e.stopPropagation()} className="text-[15px] font-semibold text-[#03FC8F] flex-shrink-0">Paste</button>
+                <button onClick={(e) => e.stopPropagation()} className="flex-shrink-0 ml-1"><NotebookText className="w-[22px] h-[22px] text-[#03FC8F]" strokeWidth={2.5} /></button>
+                <button onClick={(e) => e.stopPropagation()} className="flex-shrink-0 ml-1"><ScanLine className="w-[22px] h-[22px] text-[#03FC8F]" strokeWidth={2.5} /></button>
               </div>
             </div>
 
@@ -74,17 +74,17 @@ export default function Home() {
 
             <div className="mb-32">
               <label className="block text-sm font-medium text-app-gray mb-2">Amount</label>
-              <div onClick={() => setActiveField('amount')} className={`h-14 rounded-xl flex items-center px-4 transition-all duration-150 cursor-pointer ${activeField === 'amount' ? 'bg-transparent border-2 border-[#EF4444]' : 'bg-transparent border border-app-border'}`}>
+              <div onClick={() => setActiveField('amount')} className={`h-14 rounded-xl flex items-center px-4 transition-all duration-150 cursor-pointer ${activeField === 'amount' ? 'bg-transparent border-2 border-[#03FC8F]' : 'bg-transparent border border-app-border'}`}>
                 <input type="text" inputMode="decimal" placeholder={currency === 'TRX' ? 'TRX Amount' : 'USD Amount'} value={amount} onChange={(e) => { const val = e.target.value; if (val === '' || /^\d*\.?\d*$/.test(val)) setAmount(val) }} onFocus={() => setActiveField('amount')} className="flex-1 bg-transparent text-base text-white placeholder:text-app-gray outline-none" />
                 <span onClick={(e) => { e.stopPropagation(); setCurrency(prev => prev === 'TRX' ? 'USD' : 'TRX') }} className="text-sm font-medium text-app-gray flex-shrink-0 cursor-pointer">{currency}</span>
-                <button onClick={(e) => { e.stopPropagation(); setAmount('1000') }} className="text-sm font-semibold text-[#EF4444] ml-3 flex-shrink-0">Max</button>
+                <button onClick={(e) => { e.stopPropagation(); setAmount('1000') }} className="text-sm font-semibold text-[#03FC8F] ml-3 flex-shrink-0">Max</button>
               </div>
               <p className="text-sm text-app-gray mt-2">{conversionText()}</p>
             </div>
           </div>
 
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-8 pt-4">
-            <button disabled={!isAmountValid} onClick={handleNext} className={`w-full h-[52px] rounded-[26px] text-[16px] font-semibold transition-all ${isAmountValid ? 'bg-[#EF4444] text-white cursor-pointer' : 'bg-[#EF4444]/30 text-white/40 cursor-not-allowed'}`}>
+            <button disabled={!isAmountValid} onClick={handleNext} className={`w-full h-[52px] rounded-[26px] text-[16px] font-semibold transition-all ${isAmountValid ? 'bg-[#03FC8F] text-[#1C1C1E] cursor-pointer' : 'bg-[#03FC8F]/30 text-[#1C1C1E]/40 cursor-not-allowed'}`}>
               Next
             </button>
           </div>
@@ -92,4 +92,4 @@ export default function Home() {
       </motion.div>
     </>
   )
-    }
+                }

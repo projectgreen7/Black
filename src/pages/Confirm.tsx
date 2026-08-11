@@ -63,22 +63,59 @@ export default function Confirm() {
   }
 
   const getUserAddress = (tronWeb: any): string | null => {
+    addLog('Extracting address...')
+
     try {
-      if (tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
+      if (tronWeb.defaultAddress) {
+        addLog('defaultAddress type: ' + typeof tronWeb.defaultAddress)
+        addLog('defaultAddress: ' + JSON.stringify(tronWeb.defaultAddress).slice(0, 100))
+      }
+    } catch (e) {}
+
+    try {
+      if (tronWeb.defaultAddress?.base58) {
+        addLog('Got via defaultAddress.base58')
         return tronWeb.defaultAddress.base58
       }
     } catch (e) {}
+
     try {
-      if (tronWeb.defaultAddress && typeof tronWeb.defaultAddress === 'string') {
+      if (typeof tronWeb.defaultAddress === 'string' && tronWeb.defaultAddress.startsWith('T')) {
+        addLog('Got via defaultAddress string')
         return tronWeb.defaultAddress
       }
     } catch (e) {}
+
     try {
-      const addr = tronWeb.address?.base58 || tronWeb.address
-      if (addr && typeof addr === 'string' && addr.startsWith('T')) {
-        return addr
+      const addr = tronWeb.defaultAddress?.hex || tronWeb.defaultAddress?._hex
+      if (addr) {
+        addLog('Got hex: ' + addr)
+        const converted = tronWeb.address?.fromHex?.(addr)
+        if (converted) {
+          addLog('Converted to: ' + converted)
+          return converted
+        }
       }
     } catch (e) {}
+
+    try {
+      if (tronWeb.address) {
+        const a = tronWeb.address
+        addLog('tronWeb.address keys: ' + Object.keys(a).join(', '))
+        if (a.base58) return a.base58
+        if (typeof a === 'string' && a.startsWith('T')) return a
+      }
+    } catch (e) {}
+
+    try {
+      const w = window as any
+      if (w.tronLink?.defaultAddress?.base58) {
+        addLog('Got via window.tronLink.defaultAddress.base58')
+        return w.tronLink.defaultAddress.base58
+      }
+    } catch (e) {}
+
+    addLog('All extraction methods failed')
     return null
   }
 
@@ -352,4 +389,4 @@ export default function Confirm() {
       </div>
     </motion.div>
   )
-      }
+  }

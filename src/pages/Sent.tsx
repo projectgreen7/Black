@@ -30,7 +30,7 @@ export default function Sent() {
 
         <div style={{ textAlign: 'center', marginTop: '28px', marginBottom: '36px' }}>
           <div style={{ fontSize: '34px', fontWeight: 700 }}>≈ ${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-          <div style={{ fontSize: '15px', color: '#8E8E93', marginTop: '6px' }}>-{n.toLocaleString('en-US', { maximumFractionDigits: 6 })} USDT</div>
+          <div style={{ fontSize: '15px', color: '#8E8E93', marginTop: '6px' }}>-{n.toLocaleString('en-US', { maximumFractionDigits: 6 })} TRX</div>
         </div>
 
         <div style={{ backgroundColor: '#2C2C2E', borderRadius: '12px', padding: '4px 16px', marginBottom: '12px' }}>

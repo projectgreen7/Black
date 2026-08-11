@@ -48,7 +48,7 @@ export default function Home() {
         <div className="w-full max-w-[100vw] min-h-screen bg-app-bg relative shadow-mobile">
           <div className="h-3 w-full" />
           <header className="flex items-center justify-center px-4 h-10">
-            <h1 className="text-lg font-bold text-white">Send USDT</h1>
+            <h1 className="text-lg font-bold text-white">Send TRX</h1>
           </header>
           
           <div className="px-4 pt-4">
@@ -67,7 +67,7 @@ export default function Home() {
               <label className="block text-sm font-medium text-app-gray mb-2">Destination network</label>
               <button className="h-11 bg-app-input rounded-xl flex items-center px-3.5 gap-2.5 cursor-pointer border border-app-border">
                 <img src="/tron-logo.png" alt="TRX" className="w-7 h-7 flex-shrink-0 object-contain rounded-full" />
-                <span className="text-[15px] font-semibold text-app-gray">Tron Network</span>
+                <span className="text-[15px] font-semibold text-app-gray">Tron</span>
                 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" className="ml-1 flex-shrink-0"><path d="M0 0L5 6L10 0H0Z" fill="#8E8E93"/></svg>
               </button>
             </div>

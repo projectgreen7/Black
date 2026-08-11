@@ -9,7 +9,7 @@ export default function Confirm() {
   const amount = location.state?.amount || '0'
   const currency = location.state?.currency || 'TRX'
   const n = parseFloat(amount) || 0
-  const TRX_PRICE = 0.35
+  const TRX_PRICE = 0.33
 
   const trxValue = currency === 'TRX' ? n : n / TRX_PRICE
   const usdValue = currency === 'TRX' ? n * TRX_PRICE : n

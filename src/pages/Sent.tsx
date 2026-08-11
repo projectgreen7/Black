@@ -44,7 +44,7 @@ export default function Sent() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0' }}>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>Recipient</span>
-            <span style={{ fontSize: '15px' }}>TR7NH...Lj6t</span>
+            <span style={{ fontSize: '15px' }}>TWbVS...piAj</span>
           </div>
         </div>
 

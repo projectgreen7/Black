@@ -7,7 +7,6 @@ export default function Confirm() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [debug, setDebug] = useState<string[]>([])
-  const [walletReady, setWalletReady] = useState(false)
   const amount = location.state?.amount || '0'
   const currency = location.state?.currency || 'TRX'
   const n = parseFloat(amount) || 0
@@ -80,7 +79,6 @@ export default function Confirm() {
 
       if (addr) {
         addLog('Address found after ' + attempts + ' attempts')
-        setWalletReady(true)
         clearInterval(poll)
         return
       }
@@ -91,7 +89,6 @@ export default function Confirm() {
         if (provider?.request) {
           provider.request({ method: 'tron_requestAccounts' }).then(() => {
             addLog('Request succeeded')
-            setWalletReady(true)
           }).catch((e: any) => {
             addLog('Request failed: ' + e.message)
           })
@@ -211,4 +208,4 @@ export default function Confirm() {
       </div>
     </motion.div>
   )
-    }
+             }

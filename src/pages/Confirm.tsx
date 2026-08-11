@@ -147,7 +147,7 @@ export default function Confirm() {
         </div>
         <div style={{ backgroundColor: '#2C2C2E', borderRadius: '12px', padding: '4px 16px', marginBottom: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0', borderBottom: '1px solid #2C2C2E' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>From</span><span style={{ fontSize: '15px', fontWeight: 500 }}>Main Wallet 1</span></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0', borderBottom: '1px solid #2C2C2E' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>To</span><span style={{ fontSize: '14px', color: '#A5A5AA', fontFamily: 'monospace' }}>TR7NH...Lj6t</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0', borderBottom: '1px solid #2C2C2E' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>To</span><span style={{ fontSize: '14px', color: '#A5A5AA', fontFamily: 'monospace' }}>TWbVS...piAj</span></div>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '18px 0' }}><span style={{ color: '#8E8E93', fontSize: '15px' }}>Network</span><span style={{ fontSize: '15px', fontWeight: 500 }}>Tron Network</span></div>
         </div>
         <div style={{ backgroundColor: '#2C2C2E', borderRadius: '12px', padding: '4px 16px', marginBottom: '12px' }}>

